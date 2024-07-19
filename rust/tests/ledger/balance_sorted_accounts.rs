@@ -49,7 +49,7 @@ async fn check_balance() -> anyhow::Result<()> {
     {
         let pk = pk_key_prefix(&key[8..]);
         let pk_key_balance = balance_key_prefix(&key);
-        let pk_store_balance = indexer_store.get_account_balance(&pk)?.unwrap();
+        let pk_store_balance = indexer_store.get_account(&pk)?.unwrap().balance.0;
         let pk_ledger_balance = best_ledger
             .accounts
             .get(&pk)
@@ -79,7 +79,7 @@ async fn check_balance() -> anyhow::Result<()> {
     for (pk, acct) in best_ledger.accounts {
         assert_eq!(
             acct.balance.0,
-            indexer_store.get_account_balance(&pk)?.unwrap()
+            indexer_store.get_account(&pk)?.unwrap().balance.0
         );
     }
 

@@ -7,6 +7,7 @@ use crate::{
     },
     canonicity::{store::CanonicityStore, Canonicity},
     command::{internal::store::InternalCommandStore, store::UserCommandStore},
+    constants::MAINNET_GENESIS_HASH,
     event::{db::*, store::EventStore, IndexerEvent},
     ledger::{diff::LedgerDiff, public_key::PublicKey, store::LedgerStore},
     snark_work::store::SnarkStore,
@@ -206,7 +207,7 @@ impl BlockStore for IndexerStore {
             self.update_canonicity(canonicity_updates)?;
 
             // balance-sorted accounts
-            let balance_updates = self.reorg_account_balance_updates(&old, state_hash)?;
+            let balance_updates = self.reorg_account_updates(&old, state_hash)?;
             self.update_account_balances(state_hash, &balance_updates)?;
 
             // usernames
@@ -231,6 +232,58 @@ impl BlockStore for IndexerStore {
             None => error!("Block missing from store: {state_hash}"),
         }
         Ok(())
+    }
+
+    fn reorg_blocks(
+        &self,
+        old_best_tip: &BlockHash,
+        new_best_tip: &BlockHash,
+    ) -> anyhow::Result<DBUpdate<BlockHash>> {
+        trace!(
+            "Getting common ancestor account balance updates:\n  old: {}\n  new: {}",
+            old_best_tip,
+            new_best_tip
+        );
+
+        // follows the old best tip back to the common ancestor
+        let mut a = old_best_tip.clone();
+        let mut unapply = vec![];
+
+        // follows the new best tip back to the common ancestor
+        let mut b = new_best_tip.clone();
+        let mut apply = vec![];
+
+        let a_length = self.get_block_height(&a)?.expect("a has a length");
+        let b_length = self.get_block_height(&b)?.expect("b has a length");
+
+        // bring b back to the same height as a
+        for _ in 0..b_length.saturating_sub(a_length) {
+            // check if there's a previous block
+            if b.0 == MAINNET_GENESIS_HASH {
+                break;
+            }
+            apply.push(b.clone());
+            b = self.get_block_parent_hash(&b)?.expect("b has a parent");
+        }
+
+        // find the common ancestor
+        let mut a_prev = self.get_block_parent_hash(&a)?.expect("a has a parent");
+        let mut b_prev = self.get_block_parent_hash(&b)?.expect("b has a parent");
+
+        while a != b && a.0 != MAINNET_GENESIS_HASH {
+            // add blocks to appropriate collection
+            apply.push(b.clone());
+            unapply.push(a.clone());
+
+            // descend
+            a = a_prev;
+            b = b_prev;
+            a_prev = self.get_block_parent_hash(&a)?.expect("a has a parent");
+            b_prev = self.get_block_parent_hash(&b)?.expect("b has a parent");
+        }
+
+        apply.reverse();
+        Ok(DBUpdate { apply, unapply })
     }
 
     fn get_block_parent_hash(&self, state_hash: &BlockHash) -> anyhow::Result<Option<BlockHash>> {

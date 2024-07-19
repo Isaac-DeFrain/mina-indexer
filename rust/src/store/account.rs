@@ -4,6 +4,7 @@ use crate::{
     command::{internal::InternalCommand, Command, Payment},
     constants::{MAINNET_ACCOUNT_CREATION_FEE, MAINNET_GENESIS_HASH},
     ledger::{
+        account::Account,
         coinbase::Coinbase,
         diff::account::{PaymentDiff, UpdateType},
         public_key::PublicKey,
@@ -14,12 +15,12 @@ use speedb::{DBIterator, IteratorMode};
 use std::collections::HashMap;
 
 pub trait AccountStore {
-    /// Update pk's balance-sorted account balance
-    fn update_account_balance(&self, pk: &PublicKey, balance: Option<u64>) -> anyhow::Result<()>;
+    /// Update pk's account
+    fn update_account(&self, pk: &PublicKey, account: Option<Account>) -> anyhow::Result<()>;
 
     /// Generate account balance updates when the best tip changes.
     /// Return with set of coinbase receivers.
-    fn reorg_account_balance_updates(
+    fn reorg_account_updates(
         &self,
         old_best_tip: &BlockHash,
         new_best_tip: &BlockHash,
@@ -46,7 +47,19 @@ pub trait AccountStore {
     ) -> anyhow::Result<()>;
 
     /// Get pk's account balance
-    fn get_account_balance(&self, pk: &PublicKey) -> anyhow::Result<Option<u64>>;
+    fn get_account(&self, pk: &PublicKey) -> anyhow::Result<Option<Account>>;
+
+    /// Remove pk delegation
+    fn remove_pk_delegate(&self, pk: PublicKey) -> anyhow::Result<()>;
+
+    /// Add pk delegation
+    fn add_pk_delegate(&self, pk: &PublicKey, delegate: &PublicKey) -> anyhow::Result<()>;
+
+    /// Get pk's number of delegations
+    fn get_num_pk_delegations(&self, pk: &PublicKey) -> anyhow::Result<u32>;
+
+    /// Get `pk`'s `idx`-th delegation
+    fn get_pk_delegation(&self, pk: &PublicKey, idx: u32) -> anyhow::Result<Option<PublicKey>>;
 
     /// Update best ledger accounts count
     fn update_num_accounts(&self, adjust: i32) -> anyhow::Result<()>;

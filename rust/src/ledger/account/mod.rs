@@ -27,7 +27,7 @@ impl Add<Amount> for Amount {
     type Output = Amount;
 
     fn add(self, rhs: Amount) -> Self::Output {
-        Self(self.0 + rhs.0)
+        Self(self.0.saturating_add(rhs.0))
     }
 }
 
@@ -35,7 +35,7 @@ impl Sub<Amount> for Amount {
     type Output = Amount;
 
     fn sub(self, rhs: Amount) -> Self::Output {
-        Self(self.0 - rhs.0)
+        Self(self.0.saturating_sub(rhs.0))
     }
 }
 
@@ -44,11 +44,19 @@ impl Sub<Amount> for Amount {
 )]
 pub struct Nonce(pub u32);
 
-impl Add<i32> for Nonce {
+impl Add<u32> for Nonce {
     type Output = Nonce;
 
-    fn add(self, other: i32) -> Nonce {
-        Nonce(self.0.wrapping_add(other as u32))
+    fn add(self, other: u32) -> Nonce {
+        Self(self.0.saturating_add(other))
+    }
+}
+
+impl Sub<u32> for Nonce {
+    type Output = Nonce;
+
+    fn sub(self, other: u32) -> Nonce {
+        Self(self.0.saturating_sub(other))
     }
 }
 
@@ -166,9 +174,31 @@ impl Account {
         use super::UpdateType;
         match payment_diff.update_type {
             UpdateType::Credit => Self::from_credit(pre.clone(), payment_diff.amount),
-            UpdateType::Debit(nonce) => {
-                Account::from_debit(pre.clone(), payment_diff.amount, nonce).unwrap_or(pre.clone())
-            }
+            UpdateType::Debit(nonce) => Account::from_debit(
+                pre.clone(),
+                payment_diff.amount,
+                nonce.map(|n| Nonce(n.0 + 1)),
+            )
+            .unwrap_or(pre.clone()),
+        }
+    }
+
+    pub fn from_unaaply_payment(pre: Self, payment_diff: &PaymentDiff) -> Self {
+        use super::UpdateType;
+        match payment_diff.update_type {
+            UpdateType::Credit => Account {
+                balance: pre.balance.sub(payment_diff.amount),
+                ..pre
+            },
+            UpdateType::Debit(Some(_)) => Self {
+                balance: pre.balance.add(payment_diff.amount),
+                nonce: pre.nonce.sub(1),
+                ..pre
+            },
+            UpdateType::Debit(None) => Self {
+                balance: pre.balance.add(payment_diff.amount),
+                ..pre
+            },
         }
     }
 

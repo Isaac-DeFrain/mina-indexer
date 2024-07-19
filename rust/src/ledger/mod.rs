@@ -45,12 +45,6 @@ pub struct NonGenesisLedger {
     pub ledger: Ledger,
 }
 
-#[derive(Debug, Clone)]
-pub enum LedgerError {
-    AccountNotFound,
-    InvalidDelegation,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LedgerHash(pub String);
 
@@ -122,13 +116,11 @@ impl Ledger {
 
     /// Apply a ledger diff to a mutable ledger
     pub fn _apply_diff(&mut self, diff: &LedgerDiff) -> anyhow::Result<()> {
-        let ledger_diff = diff.clone();
-        let keys: Vec<PublicKey> = ledger_diff
+        let keys: Vec<PublicKey> = diff
             .account_diffs
             .iter()
             .map(|diff| diff.public_key())
             .collect();
-
         keys.into_iter().for_each(|public_key| {
             if self.accounts.get(&public_key).is_none() {
                 self.accounts
@@ -136,7 +128,7 @@ impl Ledger {
             }
         });
 
-        for diff in ledger_diff.account_diffs {
+        for diff in &diff.account_diffs {
             match self.accounts.remove(&diff.public_key()) {
                 Some(account_before) => {
                     self.accounts.insert(
@@ -174,19 +166,18 @@ impl Ledger {
                 None => {
                     return match diff {
                         AccountDiff::Coinbase(_) => Ok(()),
-                        AccountDiff::Delegation(_) => Err(LedgerError::InvalidDelegation.into()),
+                        AccountDiff::Delegation(_) => bail!("Invalid delegation"),
                         AccountDiff::Payment(_)
                         | AccountDiff::AccountCreationFee(_)
                         | AccountDiff::FeeTransfer(_)
                         | AccountDiff::FeeTransferViaCoinbase(_)
                         | AccountDiff::FailedTransactionNonce(_) => {
-                            Err(LedgerError::AccountNotFound.into())
+                            bail!("Account {} not found", diff.public_key())
                         }
                     };
                 }
             }
         }
-
         Ok(())
     }
 
@@ -296,19 +287,6 @@ impl std::fmt::Debug for Ledger {
         Ok(())
     }
 }
-
-impl std::fmt::Display for LedgerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LedgerError::AccountNotFound => write!(f, "Account not found in ledger: payment error"),
-            LedgerError::InvalidDelegation => {
-                write!(f, "Invalid data or parameters: delegation error")
-            }
-        }
-    }
-}
-
-impl std::error::Error for LedgerError {}
 
 impl Amount {
     pub fn add(&self, other: &Amount) -> Amount {

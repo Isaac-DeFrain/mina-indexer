@@ -1010,9 +1010,8 @@ impl IndexerState {
 
     /// Sync from an existing db
     ///
-    /// Short-circuits adding blocks to the witness tree by rooting the
-    /// witness tree at the most recent deep canonical block and only adding
-    /// the successive blocks
+    /// Short-circuits adding all blocks to the witness tree by rooting the
+    /// witness tree `canonical_threshold` blocks behind the current best tip
     pub fn sync_from_db(&mut self) -> anyhow::Result<Option<u32>> {
         let mut min_length_filter = None;
         let mut witness_tree_blocks = vec![];

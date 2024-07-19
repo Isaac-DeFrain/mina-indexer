@@ -104,7 +104,7 @@ async fn account_diffs() {
                 }
             }
             AccountDiff::AccountCreationFee(pk) => {
-                println!("\n* Creation fee: {pk}");
+                println!("\n* Creation fee: {pk:?}");
             }
             AccountDiff::Delegation(DelegationDiff {
                 delegate,

@@ -5,15 +5,14 @@ use mina_indexer::{
 use std::path::PathBuf;
 
 #[tokio::test]
-async fn account_diffs() {
+async fn account_diffs() -> anyhow::Result<()> {
     let log_dir = PathBuf::from("./tests/data/sequential_blocks");
-    let mut block_parser = BlockParser::new_testing(&log_dir).unwrap();
+    let mut block_parser = BlockParser::new_testing(&log_dir)?;
 
     // mainnet-105490-3NKxEA9gztvEGxL4uk4eTncZAxuRmMsB8n81UkeAMevUjMbLHmkC.json
     let (block, _) = block_parser
         .get_precomputed_block("3NKxEA9gztvEGxL4uk4eTncZAxuRmMsB8n81UkeAMevUjMbLHmkC")
-        .await
-        .unwrap();
+        .await?;
     let diff = LedgerDiff::from_precomputed(&block);
     let ledger = Ledger::from(vec![
         (
@@ -64,13 +63,12 @@ async fn account_diffs() {
             None,
             None,
         ),
-    ])
-    .unwrap();
+    ])?;
 
     println!("=== Initial ===");
     println!("{:?}", ledger);
 
-    let ledger = ledger.apply_diff(&diff).unwrap();
+    let ledger = ledger.apply_diff(&diff)?;
     let expected = Ledger::from(vec![
         (
             "B62qrusueb8gq1RbZWyZG9EN1eCKjbByTQ39fgiGigkvg7nJR3VdGwX",
@@ -81,13 +79,13 @@ async fn account_diffs() {
         (
             "B62qrRvo5wngd5WA1dgXkQpCdQMRDndusmjfWXWT1LgsSFFdBS9RCsV",
             843190000000,
-            Some(42427),
+            Some(42428),
             None,
         ),
         (
             "B62qrdhG66vK71Jbdz6Xs7cnDxQ8f6jZUFvefkp3pje4EejYUTvotGP",
             2439634213000,
-            Some(7296),
+            Some(7297),
             None,
         ),
         (
@@ -105,7 +103,7 @@ async fn account_diffs() {
         (
             "B62qre3erTHfzQckNuibViWQGyyKwZseztqrjPZBv6SQF384Rg6ESAy",
             999997998000,
-            Some(146493),
+            Some(146494),
             None,
         ),
         (
@@ -120,8 +118,7 @@ async fn account_diffs() {
             Some(0),
             None,
         ),
-    ])
-    .unwrap();
+    ])?;
 
     println!("=== Diff ===");
     println!("{diff:?}");
@@ -139,4 +136,5 @@ async fn account_diffs() {
         println!("{pk}: {}", account.nonce.0);
     }
     assert_eq!(ledger, expected);
+    Ok(())
 }
