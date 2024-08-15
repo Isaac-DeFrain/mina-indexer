@@ -212,6 +212,9 @@ impl BlockStore for IndexerStore {
             // usernames
             let username_updates = self.reorg_username_updates(&old, state_hash)?;
             self.update_usernames(username_updates)?;
+
+            // TODO
+            // SNARK work
         }
 
         // set new best tip
