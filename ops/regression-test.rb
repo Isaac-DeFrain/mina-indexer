@@ -46,6 +46,7 @@ test_names = %w[
   reuse_databases
   snapshot_database_dir
   v2_signed_command_hash
+  zkapp_command_hash
   rest_accounts_summary
   rest_blocks
   genesis_block_creator

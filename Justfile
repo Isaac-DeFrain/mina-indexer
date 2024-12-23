@@ -219,6 +219,7 @@ tier1: tier1-prereqs check lint test-unit
     rest_accounts_summary \
     reuse_databases \
     v2_signed_command_hash \
+    zkapp_command_hash \
     hurl
 
 # Tier 2 tests

@@ -9,11 +9,12 @@ set -euo pipefail
 IDXR="$1"
 shift
 
-# Collect the binaries under test and the test ledgers.
+# Collect the binaries under test, test ledgers, and test zkapps.
 SRC="$(git rev-parse --show-toplevel)"
 REV="$(git rev-parse --short=8 HEAD)"
 STAKING_LEDGERS="$SRC"/tests/data/staking_ledgers
 SUMMARY_SCHEMA="$SRC"/tests/data/json-schemas/summary.json
+ZKAPP_COMMAND_JSON="$SRC"/tests/data/zkapp_commands
 
 # The rest of this script's logic assumes that the testing is done from within
 # this temporary directory.
@@ -327,6 +328,20 @@ test_v2_signed_command_hash() {
 
     result=$(idxr hash txn --json '{"payload":{"body":["Payment",{"amount":"1000000000","receiver_pk":"B62qpjxUpgdjzwQfd8q2gzxi99wN7SCgmofpvw27MBkfNHfHoY2VH32"}],"common":{"fee":"0.0011","fee_payer_pk":"B62qpjxUpgdjzwQfd8q2gzxi99wN7SCgmofpvw27MBkfNHfHoY2VH32","memo":"E4YM2vTHhWEg66xpj52JErHUBU4pZ1yageL4TVDDpTTSsv8mK6YaH","nonce":"765","valid_until":"4294967295"}},"signature":"7mX5FyaaoRY5a3hKP3kqhm6A4gWo9NtoHMh7irbB3Dt326wm8gyfsEQeHKJgYqQeo7nBgFGNjCD9eC265VrECYZJqYsD5V5R","signer":"B62qpjxUpgdjzwQfd8q2gzxi99wN7SCgmofpvw27MBkfNHfHoY2VH32"}')
     assert '5JuJ1eRNWdE8jSMmCDoHnAdBGhLyBnCk2gkcvkfCZ7WvrKtGuWHB' $result
+}
+
+# Indexer hashes zkapp commands correctly
+# Transactions from mainnet-397612-3NLh3tvZpMPXxUhCLz1898BDV6CwtExJqDWpzcZQebVCsZxghoXK
+test_zkapp_command_hash() {
+    idxr_server_start_standard
+    wait_for_socket
+
+    zkapp_cmd0=$(cat $ZKAPP_COMMAND_JSON/mainnet-397612-3NLh3tvZpMPXxUhCLz1898BDV6CwtExJqDWpzcZQebVCsZxghoXK_cmd0.json)
+    hash0=$(idxr hash txn --json "$zkapp_cmd0")
+    assert '5JvH3LEJrazb9DpQb5Wym9Q1ZWyCVJmc9TNgubSjXPCHfSuDc2LL' $hash0
+
+    
+    # assert '5JvQqrHBgDtB7gew76AkFhSkkfUTCtYQhPT53erZZQYibV6ms9YD' $hash1
 }
 
 # Indexer server reports correct balance for Genesis Ledger Account
@@ -1854,6 +1869,7 @@ for test_name in "$@"; do
         "test_snapshot_database_dir") test_snapshot_database_dir ;;
         "test_startup_dirs_get_created") test_startup_dirs_get_created ;;
         "test_v2_signed_command_hash") test_v2_signed_command_hash;;
+        "test_zkapp_command_hash") test_zkapp_command_hash;;
         "test_account_balance_cli") test_account_balance_cli ;;
         "test_account_public_key_json") test_account_public_key_json ;;
         "test_canonical_root") test_canonical_root ;;
