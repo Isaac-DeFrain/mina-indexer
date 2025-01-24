@@ -45,6 +45,19 @@ impl LedgerHash {
     }
 }
 
+///////////
+// serde //
+///////////
+
+impl<'de> Deserialize<'de> for LedgerHash {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        crate::mina_blocks::common::from_str(deserializer)
+    }
+}
+
 impl std::str::FromStr for LedgerHash {
     type Err = anyhow::Error;
 
